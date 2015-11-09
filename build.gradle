@@ -1,6 +1,7 @@
 apply plugin: 'java'
 apply plugin: 'eclipse'
 apply plugin: 'idea'
+apply plugin: 'application'
 //apply plugin: 'spring-boot'
 
 
@@ -25,6 +26,14 @@ buildscript{
 repositories {
     mavenCentral()
 }
+
+def mainVerticle = "com.meteora.ServerVerticle"
+
+mainClassName = "io.vertx.core.Starter"
+run {
+    args = ["run", mainVerticle]
+}
+
 
 dependencies {
     compile 'io.vertx:vertx-apex:3.0.0-milestone4'
