@@ -28,9 +28,11 @@ public class ServerVerticle extends AbstractVerticle {
     @Override
     public void start() throws Exception {
 
-        JsonObject config = new JsonObject().put("url", "jdbc:mysql://dev-dotmoney-dbm01.amb-stg-295.a4c.jp:3306/machida?user=machida-usr&password=machida-pwd")
+        JsonObject config = new JsonObject().put("url", "jdbc:mysql://52.192.148.251:3306/meteora")
+                .put("user","meteora-usr")
                 .put("max_pool_size", 100)
-                .put("initial_pool_size", 100);
+                .put("initial_pool_size", 100)
+                .put("min_pool_size", 100);
         DeploymentOptions options = new DeploymentOptions().setConfig(config).setInstances(2).setMultiThreaded(true).setWorker(true);
 
         vertx.deployVerticle("service:io.vertx.jdbc-service", options, res -> {
@@ -44,8 +46,8 @@ public class ServerVerticle extends AbstractVerticle {
                     routingContext.next();
                 });
 
-                router.get("/account").handler(this::getListProduct);
-                router.get("/account/:accountNumber").handler(this::getShowProduct);
+                router.get("/movie").handler(this::getListProduct);
+                router.get("/movie/:id").handler(this::getShowProduct);
                 vertx.createHttpServer().requestHandler(router::accept).listen(8081);
             } else {
                 throw new RuntimeException(res.cause());
@@ -76,7 +78,7 @@ public class ServerVerticle extends AbstractVerticle {
     private void getListProduct(RoutingContext context) {
         SqlConnection connection = context.get(CONNECTION);
 
-        connection.query("select * from account", res -> {
+        connection.query("select * from movie", res -> {
             if (res.succeeded()) {
                 JsonArray arr = new JsonArray();
                 List<JsonObject> rows = res.result().getRows();
@@ -89,13 +91,13 @@ public class ServerVerticle extends AbstractVerticle {
     }
 
     private void getShowProduct(RoutingContext context) {
-        String productID = context.request().getParam("accountNumber");
+        String productID = context.request().getParam("id");
 
         if (productID == null) {
             context.fail(404);
         } else {
             SqlConnection connection = context.get(CONNECTION);
-            String sql = "select * from account where account_number = ?";
+            String sql = "select * from movie where id = ?";
             JsonArray params = new JsonArray().add(productID);
 
             connection.queryWithParams(sql, params, res -> {
