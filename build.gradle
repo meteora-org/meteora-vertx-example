@@ -3,7 +3,7 @@ apply plugin: 'eclipse'
 apply plugin: 'idea'
 apply plugin: 'application'
 //apply plugin: 'spring-boot'
-
+apply plugin: 'com.github.johnrengelman.shadow'
 
 sourceCompatibility = 1.8
 version = '1.0'
@@ -16,10 +16,11 @@ jar {
 
 buildscript{
     dependencies {
-
+        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.2'
     }
     repositories {
         mavenCentral()
+        jcenter()
     }
 }
 
@@ -46,4 +47,16 @@ dependencies {
 task wrapper(type: Wrapper) {
     gradleVersion = '2.8'
 }
+
+shadowJar {
+    classifier = 'fat'
+    manifest {
+        attributes 'Main-Class': 'io.vertx.core.Launcher'
+        attributes 'Main-Verticle': 'com.meteora.ServerVerticle'
+    }
+    mergeServiceFiles {
+        include 'META-INF/services/io.vertx.core.spi.VerticleFactory'
+    }
+}
+
 

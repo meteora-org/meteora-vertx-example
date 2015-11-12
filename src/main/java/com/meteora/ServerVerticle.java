@@ -21,16 +21,17 @@ public class ServerVerticle extends AbstractVerticle {
 
     @Override
     public void init(Vertx vertx, Context context) {
-        vertx = Vertx.vertx(new VertxOptions().setWorkerPoolSize(40));
+        vertx = Vertx.vertx(new VertxOptions().setWorkerPoolSize(100));
         super.init(vertx, context);
     }
 
     @Override
     public void start() throws Exception {
 
-        JsonObject config = new JsonObject().put("url", "jdbc:mysql://dev-dotmoney-dbm01.amb-stg-295.a4c.jp:3306/machida?user=machida-usr&password=machida-pwd");
-        DeploymentOptions options = new DeploymentOptions().setConfig(config);
-
+        JsonObject config = new JsonObject().put("url", "jdbc:mysql://dev-dotmoney-dbm01.amb-stg-295.a4c.jp:3306/machida?user=machida-usr&password=machida-pwd")
+                .put("max_pool_size", 100)
+                .put("initial_pool_size", 100);
+        DeploymentOptions options = new DeploymentOptions().setConfig(config).setInstances(2).setMultiThreaded(true).setWorker(true);
 
         vertx.deployVerticle("service:io.vertx.jdbc-service", options, res -> {
             if (res.succeeded()) {
