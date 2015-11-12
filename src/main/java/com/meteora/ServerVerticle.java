@@ -131,7 +131,11 @@ public class ServerVerticle extends AbstractVerticle {
 
             connection.updateWithParams(sql, params, res -> {
                 if (res.succeeded()) {
-                    context.response().end();
+                    connection.query("SELECT LAST_INSERT_ID() as id ;", res2 -> {
+                        Long insertId = res2.result().getRows().get(0).getLong("id");
+                        context.response().putHeader("Location",context.request().path()+ "/" + insertId);
+                        context.response().end();
+                    });
                 } else {
                     context.fail(res.cause());
                 }
