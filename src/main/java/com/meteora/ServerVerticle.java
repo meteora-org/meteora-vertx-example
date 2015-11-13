@@ -2,8 +2,8 @@ package com.meteora;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Context;
+import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
-import io.vertx.core.VertxOptions;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -17,7 +17,6 @@ public class ServerVerticle extends AbstractVerticle {
 
     @Override
     public void init(Vertx vertx, Context context) {
-        vertx = Vertx.vertx(new VertxOptions().setWorkerPoolSize(100));
         super.init(vertx, context);
     }
 
@@ -30,7 +29,7 @@ public class ServerVerticle extends AbstractVerticle {
 
         ServerVerticle that = this;
 
-        master = JDBCClient.createNonShared(vertx, new JsonObject()
+        master = JDBCClient.createShared(vertx, new JsonObject()
                 .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8")
                 .put("user","meteora-usr")
                 .put("max_pool_size", 1)
@@ -65,10 +64,9 @@ public class ServerVerticle extends AbstractVerticle {
 //        masterRouter.put("/movie/:id").handler(this::updateProduct);
 //        masterRouter.delete("/movie/:id").handler(this::deleteProduct);
 
-        DeploymentOptions options = new io.vertx.core.DeploymentOptions();
-
-
-        vertx.deployVerticle("com.meteora.ServerVerticle",);
+        DeploymentOptions options = new DeploymentOptions();
+        options.setInstances(2);
+        vertx.deployVerticle("com.meteora.ServerVerticle",options);
         vertx.createHttpServer().requestHandler(masterRouter::accept).listen(8081);
 
     }
