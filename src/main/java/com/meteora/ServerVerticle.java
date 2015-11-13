@@ -26,7 +26,7 @@ public class ServerVerticle extends AbstractVerticle {
 
     private JDBCClient master;
 
-    private static final String DEFAULT_LIMIT_PHRASE = " limit 100 ";
+    private static final String DEFAULT_LIMIT = " 10 ";
 
     private static final String GTE = " >= ";
     private static final String LTE = " <= ";
@@ -50,6 +50,7 @@ public class ServerVerticle extends AbstractVerticle {
         ServerVerticle that = this;
 
         master = JDBCClient.createShared(vertx, new JsonObject()
+//                .put("url", "jdbc:mysql://52.192.133.203:3306/meteora?characterEncoding=utf8")
                 .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8")
                 .put("user","meteora-usr")
                 .put("initial_pool_size", 1)
@@ -103,6 +104,9 @@ public class ServerVerticle extends AbstractVerticle {
         JsonArray params = new JsonArray();
         createPhrase(context, sql, where, params);
         sql.append( where.toString() );
+        createLimit(context, sql, params);
+
+
 
         System.out.println(sql);
 
@@ -123,8 +127,13 @@ public class ServerVerticle extends AbstractVerticle {
 
     }
 
-    private static void createLimit(RoutingContext context, StringBuilder sql, StringJoiner where , JsonArray params){
-
+    private static void createLimit(RoutingContext context, StringBuilder sql, JsonArray params){
+        String limit = "10";
+        String param = context.request().getParam("limit");
+        if(param != null){
+            limit = param;
+        }
+        sql.append(" limit " + limit);
     }
 
     /**
