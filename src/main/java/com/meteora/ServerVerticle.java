@@ -354,7 +354,7 @@ public class ServerVerticle extends AbstractVerticle {
                     joiner.add(" find_in_set ( ? , itemTags ) ");
                 }
 
-                where.add(" NOT (" + joiner.toString() + ")");
+                where.add(" (" + joiner.toString() + ")");
 
                 continue;
             }
