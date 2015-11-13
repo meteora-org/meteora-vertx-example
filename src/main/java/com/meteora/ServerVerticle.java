@@ -49,6 +49,13 @@ public class ServerVerticle extends AbstractVerticle {
 
     private static final String[] paramItemKeys = {
             "findByItemId"
+            ,"findByItemSupplier"
+            ,"findByItemSoldQuantityGTE"
+            ,"findByItemSoldQuantityLTE"
+            ,"findByItemSalePriceGTE"
+            ,"findByItemSalePriceLTE"
+            ,"findByItemTagsIncludeAll"
+            ,"findByItemTagsIncludeAny"
     };
 
     private static final String[] LIMIT = {"limit"};
@@ -177,7 +184,7 @@ public class ServerVerticle extends AbstractVerticle {
         SQLConnection connection = context.get(CONNECTION);
         connection.queryWithParams(sql.toString(), params, res -> {
             JsonObject object = new JsonObject();
-            object  .put("result",true);
+            object.put("result",true);
             JsonArray array = new JsonArray();
 
             if (res.succeeded()) {
@@ -317,28 +324,37 @@ public class ServerVerticle extends AbstractVerticle {
 
     private static void createPhraseItem(RoutingContext context, StringBuilder sql, StringJoiner where , JsonArray params) {
 
-        for (String param : paramKeys) {
+        for (String param : paramItemKeys) {
             if(context.request().getParam(param) == null){
                 continue;
             }
 
-            String key = context.request().getParam(param);
+            String value = context.request().getParam(param);
 
             if(false){
                 continue;
             }
 
-            if(param.equals("findByUserFriendsNumberGTE")){
+            if(param.equals("findByItemTagsIncludeAll")){
+                String[] split = value.split(",");
+                StringJoiner joiner = new StringJoiner(" AND ");
+                for (String s : split) {
+                    params.add(s);
+                    where.add(" find_in_set ( ? , itemTags ) ");
+                }
 
-                params.add(context.request().getParam(param));
-                where.add( " userFriendsNumber " + GTE  + "   ? ");
                 continue;
             }
 
-            if(param.equals("findByUserFriendsNumberLTE")){
+            if(param.equals("findByItemTagsIncludeAny")){
+                String[] split = value.split(",");
+                StringJoiner joiner = new StringJoiner(" OR ");
+                for (String s : split) {
+                    params.add(s);
+                    joiner.add(" find_in_set ( ? , itemTags ) ");
+                }
 
-                params.add(context.request().getParam(param));
-                where.add( " userFriendsNumber " + LTE  + "   ? ");
+                where.add(" NOT (" + joiner.toString() + ")");
 
                 continue;
             }
