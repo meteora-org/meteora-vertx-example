@@ -28,7 +28,8 @@ repositories {
     mavenCentral()
 }
 
-def mainVerticle = "com.meteora.ServerVerticle"
+//def mainVerticle = "com.meteora.ServerVerticle"
+def mainVerticle = "com.meteora.MainVerticle"
 
 mainClassName = "io.vertx.core.Starter"
 run {
