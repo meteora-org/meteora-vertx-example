@@ -58,7 +58,8 @@ public class ServerVerticle extends AbstractVerticle {
 //                .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8")
                 .put("user","meteora-usr")
                 .put("initial_pool_size", 1)
-                .put("min_pool_size", 1));
+                .put("min_pool_size", 1)
+                .put("max_pool_size", 1));
 
         Router masterRouter = Router.router(vertx);
         masterRouter.route().handler(BodyHandler.create());
@@ -169,15 +170,35 @@ public class ServerVerticle extends AbstractVerticle {
                 continue;
             }
 
-            String key = context.request().getParam(param);
+            String value = context.request().getParam(param);
 
-            if(false){
+            if(param.equals("findByUserFriendsIncludeUserIds")){
+                String[] split = value.split(",");
+                StringJoiner joiner = new StringJoiner(" AND ");
+                for (String s : split) {
+                    params.add(s);
+                    where.add(" find_in_set ( ? , userFriends ) ");
+                }
+
+                continue;
+            }
+
+            if(param.equals("findByUserFriendsNotIncludeUserIds")){
+                String[] split = value.split(",");
+                StringJoiner joiner = new StringJoiner(" OR ");
+                for (String s : split) {
+                    params.add(s);
+                    joiner.add(" find_in_set ( ? , userFriends ) ");
+                }
+
+                where.add(" NOT (" + joiner.toString() + ")");
+
                 continue;
             }
 
             if(param.equals("findByUserFriendsNumberGTE")){
 
-                params.add(context.request().getParam(param));
+                params.add(value);
                 where.add( " userFriendsNumber " + GTE  + "   ? ");
                 continue;
             }
@@ -192,14 +213,14 @@ public class ServerVerticle extends AbstractVerticle {
 
             if(param.matches(".*GTE$")){
 
-                params.add(context.request().getParam(param));
+                params.add(value);
                 where.add(CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_CAMEL,param.replaceAll("(findBy|GTE)","")) + GTE  + "   ? ");
                 continue;
             }
 
             if(param.matches(".*LTE$")){
 
-                params.add(context.request().getParam(param));
+                params.add(value);
                 where.add(CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_CAMEL,param.replaceAll("(findBy|LTE)","")) + LTE  + "  ? ");
                 continue;
             }
