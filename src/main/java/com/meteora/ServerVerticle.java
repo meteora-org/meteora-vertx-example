@@ -1,6 +1,6 @@
 package com.meteora;
 
-import com.jolbox.bonecp.BoneCPConfig;
+import com.google.common.base.CaseFormat;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Context;
 import io.vertx.core.Vertx;
@@ -13,7 +13,7 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 
-import java.util.List;
+import java.util.StringJoiner;
 
 public class ServerVerticle extends AbstractVerticle {
 
@@ -26,7 +26,23 @@ public class ServerVerticle extends AbstractVerticle {
 
     private JDBCClient master;
 
-    private JDBCClient slave;
+    private static final String DEFAULT_LIMIT_PHRASE = " limit 100 ";
+
+    private static final String GTE = " >= ";
+    private static final String LTE = " <= ";
+    private static final String EQUAL = " = ";
+
+    private static final String[] paramKeys = {
+            "findByUserId"
+            ,"findByUserPublicScoreGTE"
+            ,"findByUserPublicScoreLTE"
+            ,"findByUserFriendsNumberGTE"
+            ,"findByUserFriendsNumberLTE"
+            ,"findByUserFriendsIncludeUserIds"
+            ,"findByUserNotIncludeUserIds"
+            ,"sample"};
+
+    private static final String[] LIMIT = {"limit"};
 
     @Override
     public void start() {
@@ -36,17 +52,13 @@ public class ServerVerticle extends AbstractVerticle {
         master = JDBCClient.createShared(vertx, new JsonObject()
                 .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8")
                 .put("user","meteora-usr")
-                .put("initial_pool_size", 100)
-                .put("min_pool_size", 100));
-
-        BoneCPConfig boneCPConfig = new BoneCPConfig();
-        boneCPConfig.setMaxConnectionsPerPartition(100);
-        boneCPConfig.setMinConnectionsPerPartition(100);
+                .put("initial_pool_size", 1)
+                .put("min_pool_size", 1));
 
         Router masterRouter = Router.router(vertx);
         masterRouter.route().handler(BodyHandler.create());
 
-        masterRouter.get("/movie*").handler(routingContext -> master.getConnection(res -> {
+        masterRouter.get().handler(routingContext -> master.getConnection(res -> {
             if (res.failed()) {
                 routingContext.fail(res.cause());
             } else {
@@ -65,18 +77,104 @@ public class ServerVerticle extends AbstractVerticle {
             }
         });
 
-        masterRouter.get("/movie").handler(this::getListProduct);
+        masterRouter.get("/movie*").handler(this::getListProduct);
         masterRouter.get("/movie/:id").handler(this::getShowProduct);
         masterRouter.post("/movie").handler(this::addProduct);
         masterRouter.put("/movie/:id").handler(this::updateProduct);
         masterRouter.delete("/movie/:id").handler(this::deleteProduct);
 
+
+        masterRouter.get("/searchUser*").handler(this::getSearchUser);
+
+//        masterRouter.get("/searchItem").handler(this::getListProduct);
+//        masterRouter.get("/searchPost").handler(this::getListProduct);
+
         vertx.createHttpServer().requestHandler(masterRouter::accept).listen(8080);
+
+    }
+
+    private void getSearchUser(RoutingContext context){
+
+        HttpServerResponse response = context.response();
+        StringBuilder sql = new StringBuilder();
+        sql.append(" select * from user ");
+
+        StringJoiner where = new StringJoiner(" AND ");
+        JsonArray params = new JsonArray();
+        createPhrase(context, sql, where, params);
+        sql.append( where.toString() );
+
+        System.out.println(sql);
+
+        SQLConnection connection = context.get(CONNECTION);
+        connection.queryWithParams(sql.toString(), params, res -> {
+            if (res.succeeded()) {
+                JsonArray array = new JsonArray();
+                res.result().getRows().forEach(array::add);
+                if (array.isEmpty()) {
+                    context.response().setStatusCode(404).end();
+                } else {
+                    context.response().putHeader("content-type", "application/json").end(array.encode());
+                }
+            } else {
+                context.response().setStatusCode(404).end();
+            }
+        });
+
+    }
+
+    private static void createLimit(RoutingContext context, StringBuilder sql, StringJoiner where , JsonArray params){
+
+    }
+
+    /**
+     * SQLの句を作る
+     *
+     * @param context
+     * @param sql
+     * @param where
+     * @param params
+     */
+    private static void createPhrase(RoutingContext context, StringBuilder sql, StringJoiner where , JsonArray params) {
+
+        for (String param : paramKeys) {
+            if(context.request().getParam(param) == null){
+                continue;
+            }
+
+            String key = context.request().getParam(param);
+
+            if(false){
+                continue;
+            }
+
+            if(param.matches(".*GTE$")){
+
+                params.add(context.request().getParam(param));
+                where.add(CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE,param.replaceAll("(findBy|GTE)","")) + GTE  + "   ? ");
+                continue;
+            }
+
+            if(param.matches(".*LTE$")){
+
+                params.add(context.request().getParam(param));
+                where.add(CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE,param.replaceAll("(findBy|LTE)","")) + LTE  + "  ? ");
+                continue;
+            }
+
+            params.add(context.request().getParam(param));
+            where.add(CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE,param.replace("findBy","")) + EQUAL + " ? ");
+        }
+
+        if(where.length() != 0 ){
+            sql.append(" where ");
+        }
 
     }
 
     private void getListProduct(RoutingContext context) {
         HttpServerResponse response = context.response();
+        String productID = context.request().getParam("id");
         SQLConnection connection = context.get("conn");
 
         connection.query("select * from movie", res -> {
@@ -103,11 +201,12 @@ public class ServerVerticle extends AbstractVerticle {
 
             connection.queryWithParams(sql, params, res -> {
                 if (res.succeeded()) {
-                    List<JsonObject> rows = res.result().getRows();
-                    if (rows.isEmpty()) {
+                    JsonArray arr = new JsonArray();
+                    res.result().getRows().forEach(arr::add);
+                    if (arr.isEmpty()) {
                         context.response().setStatusCode(404).end();
                     } else {
-                        context.response().putHeader("content-type", "application/json").end(rows.get(0).encode());
+                        context.response().putHeader("content-type", "application/json").end(arr.encode());
                     }
                 } else {
                     context.fail(res.cause());
