@@ -47,6 +47,10 @@ public class ServerVerticle extends AbstractVerticle {
             ,"findByPostId"
     };
 
+    private static final String[] paramItemKeys = {
+            "findByItemId"
+    };
+
     private static final String[] LIMIT = {"limit"};
 
     @Override
@@ -93,9 +97,9 @@ public class ServerVerticle extends AbstractVerticle {
 
         masterRouter.get("/searchUser*").handler(this::getSearchUser);
 
-        masterRouter.get("/searchItem*").handler(this::getListProduct);
-
         masterRouter.get("/searchPost*").handler(this::getListProduct);
+
+        masterRouter.get("/searchItem*").handler(this::getSearchItem);
 
         vertx.createHttpServer().requestHandler(masterRouter::accept).listen(8080);
 
@@ -121,7 +125,7 @@ public class ServerVerticle extends AbstractVerticle {
         SQLConnection connection = context.get(CONNECTION);
         connection.queryWithParams(sql.toString(), params, res -> {
             JsonObject object = new JsonObject();
-            object.put("result",true);
+            object.put("result", true);
             JsonArray array = new JsonArray();
 
             if (res.succeeded()) {
@@ -135,6 +139,50 @@ public class ServerVerticle extends AbstractVerticle {
                     object.put("postIds",postIds);
                 }
 
+                for (JsonObject row : rows) {
+                    Map<String, Object> map = row.getMap();
+                    if (map.get("userFriends") != null) {
+                        String str = String.valueOf(row.getValue("userFriends"));
+                        String[] split = str.split(",");
+                        map.put("userFriends", split);
+                    }
+                    array.add(new JsonObject(map));
+                }
+
+                object.put("data", array);
+                context.response().putHeader("content-type", "application/json").end(object.encode());
+            } else {
+                context.response().setStatusCode(404).end();
+            }
+        });
+
+    }
+
+
+    private void getSearchItem(RoutingContext context){
+
+        HttpServerResponse response = context.response();
+        StringBuilder sql = new StringBuilder();
+        sql.append(" select * from item ");
+
+        StringJoiner where = new StringJoiner(" AND ");
+        JsonArray params = new JsonArray();
+        createPhraseItem(context, sql, where, params);
+        sql.append(where.toString());
+        sql.append(" order by itemNo ");
+        createLimit(context, sql, params);
+
+        System.out.println(sql);
+
+        SQLConnection connection = context.get(CONNECTION);
+        connection.queryWithParams(sql.toString(), params, res -> {
+            JsonObject object = new JsonObject();
+            object  .put("result",true);
+            JsonArray array = new JsonArray();
+
+            if (res.succeeded()) {
+                List<JsonObject> rows = res.result().getRows();
+                List<JsonObject> result = new ArrayList<>();
                 for (JsonObject row : rows) {
                     Map<String, Object> map = row.getMap();
                     if(map.get("userFriends") != null){
@@ -151,7 +199,6 @@ public class ServerVerticle extends AbstractVerticle {
                 context.response().setStatusCode(404).end();
             }
         });
-
     }
 
     private static void createOrderBy(RoutingContext context, StringBuilder sql, JsonArray params){
@@ -239,6 +286,73 @@ public class ServerVerticle extends AbstractVerticle {
             if(param.matches(".*LTE$")){
 
                 params.add(value);
+                where.add(CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_CAMEL,param.replaceAll("(findBy|LTE)","")) + LTE  + "  ? ");
+                continue;
+            }
+
+            if(param.matches("findByUserFriendsIncludeUserIds")){
+                String[] items = context.request().getParam(param).split(",");
+
+                StringJoiner join = new StringJoiner(",");
+                for (String item : items) {
+                    params.add(item);
+                    join.add("?");
+                }
+
+                where.add( param + " in ( " + join.toString() + " ) ");
+
+                continue;
+
+            }
+
+            params.add(context.request().getParam(param));
+            where.add(CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_CAMEL,param.replace("findBy","")) + EQUAL + " ? ");
+        }
+
+        if(where.length() != 0 ){
+            sql.append(" where ");
+        }
+
+    }
+
+    private static void createPhraseItem(RoutingContext context, StringBuilder sql, StringJoiner where , JsonArray params) {
+
+        for (String param : paramKeys) {
+            if(context.request().getParam(param) == null){
+                continue;
+            }
+
+            String key = context.request().getParam(param);
+
+            if(false){
+                continue;
+            }
+
+            if(param.equals("findByUserFriendsNumberGTE")){
+
+                params.add(context.request().getParam(param));
+                where.add( " userFriendsNumber " + GTE  + "   ? ");
+                continue;
+            }
+
+            if(param.equals("findByUserFriendsNumberLTE")){
+
+                params.add(context.request().getParam(param));
+                where.add( " userFriendsNumber " + LTE  + "   ? ");
+
+                continue;
+            }
+
+            if(param.matches(".*GTE$")){
+
+                params.add(context.request().getParam(param));
+                where.add(CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_CAMEL,param.replaceAll("(findBy|GTE)","")) + GTE  + "   ? ");
+                continue;
+            }
+
+            if(param.matches(".*LTE$")){
+
+                params.add(context.request().getParam(param));
                 where.add(CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_CAMEL,param.replaceAll("(findBy|LTE)","")) + LTE  + "  ? ");
                 continue;
             }
