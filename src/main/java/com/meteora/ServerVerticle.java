@@ -1,5 +1,6 @@
 package com.meteora;
 
+import com.jolbox.bonecp.BoneCPConfig;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Context;
 import io.vertx.core.Vertx;
@@ -35,9 +36,12 @@ public class ServerVerticle extends AbstractVerticle {
         master = JDBCClient.createShared(vertx, new JsonObject()
                 .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8")
                 .put("user","meteora-usr")
-                .put("max_pool_size", 1)
-                .put("initial_pool_size", 1)
-                .put("min_pool_size", 1));
+                .put("initial_pool_size", 100)
+                .put("min_pool_size", 100));
+
+        BoneCPConfig boneCPConfig = new BoneCPConfig();
+        boneCPConfig.setMaxConnectionsPerPartition(100);
+        boneCPConfig.setMinConnectionsPerPartition(100);
 
         Router masterRouter = Router.router(vertx);
         masterRouter.route().handler(BodyHandler.create());
@@ -63,14 +67,11 @@ public class ServerVerticle extends AbstractVerticle {
 
         masterRouter.get("/movie").handler(this::getListProduct);
         masterRouter.get("/movie/:id").handler(this::getShowProduct);
-//        masterRouter.post("/movie").handler(this::addProduct);
-//        masterRouter.put("/movie/:id").handler(this::updateProduct);
-//        masterRouter.delete("/movie/:id").handler(this::deleteProduct);
+        masterRouter.post("/movie").handler(this::addProduct);
+        masterRouter.put("/movie/:id").handler(this::updateProduct);
+        masterRouter.delete("/movie/:id").handler(this::deleteProduct);
 
-//        DeploymentOptions options = new DeploymentOptions();
-//        options.setInstances(2);
-//        vertx.deployVerticle("com.meteora.ServerVerticle",options);
-        vertx.createHttpServer().requestHandler(masterRouter::accept).listen(8081);
+        vertx.createHttpServer().requestHandler(masterRouter::accept).listen(8080);
 
     }
 
@@ -94,7 +95,7 @@ public class ServerVerticle extends AbstractVerticle {
         SQLConnection connection = context.get(CONNECTION);
 
         if (productID == null) {
-            context.fail(404);
+            context.response().setStatusCode(404).end();
         } else {
 
             String sql = "select * from movie where id = ?";
@@ -104,7 +105,7 @@ public class ServerVerticle extends AbstractVerticle {
                 if (res.succeeded()) {
                     List<JsonObject> rows = res.result().getRows();
                     if (rows.isEmpty()) {
-                        context.fail(404);
+                        context.response().setStatusCode(404).end();
                     } else {
                         context.response().putHeader("content-type", "application/json").end(rows.get(0).encode());
                     }
@@ -122,7 +123,7 @@ public class ServerVerticle extends AbstractVerticle {
         JsonArray params = new JsonArray().add(param.getValue("title")).add(param.getValue("description"));
 
         if (param == null) {
-            context.fail(404);
+            context.response().setStatusCode(404).end();
         } else {
             SQLConnection connection = context.get(CONNECTION);
 
@@ -150,6 +151,26 @@ public class ServerVerticle extends AbstractVerticle {
             context.response().setStatusCode(404).end();
         } else {
             SQLConnection connection = context.get(CONNECTION);
+            connection.updateWithParams(sql, params, res -> {
+                if (res.succeeded()) {
+                    context.response().end();
+                } else {
+                    context.fail(res.cause());
+                }
+            });
+        }
+    }
+
+    private void deleteProduct(RoutingContext context) {
+        String id = context.request().getParam("id");
+
+        if ( id == null) {
+            context.fail(404);
+        } else {
+            SQLConnection connection = context.get(CONNECTION);
+            String sql = "delete from movie where id = ? ";
+            JsonArray params = new JsonArray().add(id);
+
             connection.updateWithParams(sql, params, res -> {
                 if (res.succeeded()) {
                     context.response().end();
