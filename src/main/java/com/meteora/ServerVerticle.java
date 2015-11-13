@@ -42,8 +42,9 @@ public class ServerVerticle extends AbstractVerticle {
             ,"findByUserFriendsNumberGTE"
             ,"findByUserFriendsNumberLTE"
             ,"findByUserFriendsIncludeUserIds"
+            ,"findByUserFriendsNotIncludeUserIds"
             ,"findByUserNotIncludeUserIds"
-            ,"sample"};
+    };
 
     private static final String[] LIMIT = {"limit"};
 
@@ -174,6 +175,21 @@ public class ServerVerticle extends AbstractVerticle {
                 continue;
             }
 
+            if(param.equals("findByUserFriendsNumberGTE")){
+
+                params.add(context.request().getParam(param));
+                where.add( " userFriendsNumber " + GTE  + "   ? ");
+                continue;
+            }
+
+            if(param.equals("findByUserFriendsNumberLTE")){
+
+                params.add(context.request().getParam(param));
+                where.add( " userFriendsNumber " + LTE  + "   ? ");
+
+                continue;
+            }
+
             if(param.matches(".*GTE$")){
 
                 params.add(context.request().getParam(param));
@@ -186,6 +202,21 @@ public class ServerVerticle extends AbstractVerticle {
                 params.add(context.request().getParam(param));
                 where.add(CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_CAMEL,param.replaceAll("(findBy|LTE)","")) + LTE  + "  ? ");
                 continue;
+            }
+
+            if(param.matches("findByUserFriendsIncludeUserIds")){
+                String[] items = context.request().getParam(param).split(",");
+
+                StringJoiner join = new StringJoiner(",");
+                for (String item : items) {
+                    params.add(item);
+                    join.add("?");
+                }
+
+                where.add( param + " in ( " + join.toString() + " ) ");
+
+                continue;
+
             }
 
             params.add(context.request().getParam(param));
