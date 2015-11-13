@@ -50,8 +50,8 @@ public class ServerVerticle extends AbstractVerticle {
         ServerVerticle that = this;
 
         master = JDBCClient.createShared(vertx, new JsonObject()
-                .put("url", "jdbc:mysql://172.30.2.48:3306/meteora?characterEncoding=utf8")
-//                .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8")
+//                .put("url", "jdbc:mysql://172.30.2.48:3306/meteora?characterEncoding=utf8")
+                .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8")
                 .put("user","meteora-usr")
                 .put("initial_pool_size", 1)
                 .put("min_pool_size", 1));
@@ -127,7 +127,7 @@ public class ServerVerticle extends AbstractVerticle {
     }
 
     private static void createOrderBy(RoutingContext context, StringBuilder sql, JsonArray params){
-        sql.append(" order by user_no " );
+        sql.append(" order by userNo " );
     }
 
     private static void createLimit(RoutingContext context, StringBuilder sql, JsonArray params){
@@ -163,19 +163,19 @@ public class ServerVerticle extends AbstractVerticle {
             if(param.matches(".*GTE$")){
 
                 params.add(context.request().getParam(param));
-                where.add(CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE,param.replaceAll("(findBy|GTE)","")) + GTE  + "   ? ");
+                where.add(CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_CAMEL,param.replaceAll("(findBy|GTE)","")) + GTE  + "   ? ");
                 continue;
             }
 
             if(param.matches(".*LTE$")){
 
                 params.add(context.request().getParam(param));
-                where.add(CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE,param.replaceAll("(findBy|LTE)","")) + LTE  + "  ? ");
+                where.add(CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_CAMEL,param.replaceAll("(findBy|LTE)","")) + LTE  + "  ? ");
                 continue;
             }
 
             params.add(context.request().getParam(param));
-            where.add(CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE,param.replace("findBy","")) + EQUAL + " ? ");
+            where.add(CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_CAMEL,param.replace("findBy","")) + EQUAL + " ? ");
         }
 
         if(where.length() != 0 ){
