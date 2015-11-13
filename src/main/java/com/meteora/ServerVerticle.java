@@ -69,9 +69,9 @@ public class ServerVerticle extends AbstractVerticle {
                 .put("url", "jdbc:mysql://172.30.2.48:3306/meteora?characterEncoding=utf8") // 本番
 //                .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8") // 検証
                 .put("user","meteora-usr")
-                .put("initial_pool_size", 30)
-                .put("min_pool_size", 30)
-                .put("max_pool_size", 30));
+                .put("initial_pool_size", 1)
+                .put("min_pool_size", 1)
+                .put("max_pool_size", 1));
 
         Router masterRouter = Router.router(vertx);
         masterRouter.route().handler(BodyHandler.create());
