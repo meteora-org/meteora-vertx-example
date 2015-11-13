@@ -50,7 +50,7 @@ public class ServerVerticle extends AbstractVerticle {
         ServerVerticle that = this;
 
         master = JDBCClient.createShared(vertx, new JsonObject()
-                .put("url", "jdbc:mysql://172.30.2.49:3306/meteora?characterEncoding=utf8")
+                .put("url", "jdbc:mysql://172.30.2.48:3306/meteora?characterEncoding=utf8")
 //                .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8")
                 .put("user","meteora-usr")
                 .put("initial_pool_size", 1)
