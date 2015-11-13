@@ -66,8 +66,8 @@ public class ServerVerticle extends AbstractVerticle {
         ServerVerticle that = this;
 
         master = JDBCClient.createShared(vertx, new JsonObject()
-                .put("url", "jdbc:mysql://172.30.2.48:3306/meteora?characterEncoding=utf8") // 本番
-//                .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8") // 検証
+//                .put("url", "jdbc:mysql://172.30.2.48:3306/meteora?characterEncoding=utf8") // 本番
+                .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8") // 検証
                 .put("user","meteora-usr")
                 .put("initial_pool_size", 1)
                 .put("min_pool_size", 1)
@@ -192,10 +192,10 @@ public class ServerVerticle extends AbstractVerticle {
                 List<JsonObject> result = new ArrayList<>();
                 for (JsonObject row : rows) {
                     Map<String, Object> map = row.getMap();
-                    if(map.get("userFriends") != null){
-                        String str = String.valueOf(row.getValue("userFriends"));
+                    if(map.get("itemTags") != null){
+                        String str = String.valueOf(row.getValue("itemTags"));
                         String[] split = str.split(",");
-                        map.put("userFriends",split);
+                        map.put("itemTags",split);
                     }
                     array.add(new JsonObject(map));
                 }
