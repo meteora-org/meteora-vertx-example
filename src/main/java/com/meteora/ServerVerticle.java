@@ -44,6 +44,7 @@ public class ServerVerticle extends AbstractVerticle {
             ,"findByUserFriendsIncludeUserIds"
             ,"findByUserFriendsNotIncludeUserIds"
             ,"findByUserNotIncludeUserIds"
+            ,"findByPostId"
     };
 
     private static final String[] LIMIT = {"limit"};
@@ -54,12 +55,12 @@ public class ServerVerticle extends AbstractVerticle {
         ServerVerticle that = this;
 
         master = JDBCClient.createShared(vertx, new JsonObject()
-                .put("url", "jdbc:mysql://172.30.2.48:3306/meteora?characterEncoding=utf8")
-//                .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8")
+                .put("url", "jdbc:mysql://172.30.2.48:3306/meteora?characterEncoding=utf8") // 本番
+//                .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8") // 検証
                 .put("user","meteora-usr")
-                .put("initial_pool_size", 1)
-                .put("min_pool_size", 1)
-                .put("max_pool_size", 1));
+                .put("initial_pool_size", 30)
+                .put("min_pool_size", 30)
+                .put("max_pool_size", 30));
 
         Router masterRouter = Router.router(vertx);
         masterRouter.route().handler(BodyHandler.create());
@@ -92,8 +93,9 @@ public class ServerVerticle extends AbstractVerticle {
 
         masterRouter.get("/searchUser*").handler(this::getSearchUser);
 
-//        masterRouter.get("/searchItem").handler(this::getListProduct);
-//        masterRouter.get("/searchPost").handler(this::getListProduct);
+        masterRouter.get("/searchItem*").handler(this::getListProduct);
+
+        masterRouter.get("/searchPost*").handler(this::getListProduct);
 
         vertx.createHttpServer().requestHandler(masterRouter::accept).listen(8080);
 
@@ -107,7 +109,9 @@ public class ServerVerticle extends AbstractVerticle {
 
         StringJoiner where = new StringJoiner(" AND ");
         JsonArray params = new JsonArray();
-        createPhrase(context, sql, where, params);
+        String value = null;
+
+        createPhrase(context, sql, where, params,value);
         sql.append( where.toString() );
         createOrderBy(context,sql,params);
         createLimit(context, sql, params);
@@ -121,8 +125,16 @@ public class ServerVerticle extends AbstractVerticle {
             JsonArray array = new JsonArray();
 
             if (res.succeeded()) {
+
                 List<JsonObject> rows = res.result().getRows();
-                List<JsonObject> result = new ArrayList<JsonObject>();
+                List<JsonObject> result = new ArrayList<>();
+
+                if(context.request().getParam("findByPostId") != null){
+                    JsonArray postIds = new JsonArray();
+                    postIds.add(context.request().getParam("findByPostId"));
+                    object.put("postIds",postIds);
+                }
+
                 for (JsonObject row : rows) {
                     Map<String, Object> map = row.getMap();
                     if(map.get("userFriends") != null){
@@ -163,14 +175,14 @@ public class ServerVerticle extends AbstractVerticle {
      * @param where
      * @param params
      */
-    private static void createPhrase(RoutingContext context, StringBuilder sql, StringJoiner where , JsonArray params) {
+    private static void createPhrase(RoutingContext context, StringBuilder sql, StringJoiner where , JsonArray params, String value) {
 
         for (String param : paramKeys) {
             if(context.request().getParam(param) == null){
                 continue;
             }
 
-            String value = context.request().getParam(param);
+            value = context.request().getParam(param);
 
             if(param.equals("findByUserFriendsIncludeUserIds")){
                 String[] split = value.split(",");
@@ -208,6 +220,12 @@ public class ServerVerticle extends AbstractVerticle {
                 params.add(context.request().getParam(param));
                 where.add( " userFriendsNumber " + LTE  + "   ? ");
 
+                continue;
+            }
+
+            if(param.equals("findByPostId")){
+                params.add(value);
+                where.add( " userId = (select postUserId from post where postId = ? )");
                 continue;
             }
 
@@ -273,6 +291,7 @@ public class ServerVerticle extends AbstractVerticle {
         if (productID == null) {
             context.response().setStatusCode(404).end();
         } else {
+
 
             String sql = "select * from movie where id = ?";
             JsonArray params = new JsonArray().add(productID);
