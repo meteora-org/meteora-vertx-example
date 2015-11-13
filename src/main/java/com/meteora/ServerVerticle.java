@@ -26,7 +26,7 @@ public class ServerVerticle extends AbstractVerticle {
 
     private JDBCClient master;
 
-    private static final String DEFAULT_LIMIT = " 10 ";
+    private static final String DEFAULT_LIMIT = " 100 ";
 
     private static final String GTE = " >= ";
     private static final String LTE = " <= ";
@@ -50,8 +50,8 @@ public class ServerVerticle extends AbstractVerticle {
         ServerVerticle that = this;
 
         master = JDBCClient.createShared(vertx, new JsonObject()
-//                .put("url", "jdbc:mysql://52.192.133.203:3306/meteora?characterEncoding=utf8")
-                .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8")
+                .put("url", "jdbc:mysql://52.192.133.203:3306/meteora?characterEncoding=utf8")
+//                .put("url", "jdbc:mysql://52.192.150.26:3306/meteora?characterEncoding=utf8")
                 .put("user","meteora-usr")
                 .put("initial_pool_size", 1)
                 .put("min_pool_size", 1));
@@ -105,26 +105,29 @@ public class ServerVerticle extends AbstractVerticle {
         createPhrase(context, sql, where, params);
         sql.append( where.toString() );
         createLimit(context, sql, params);
-
-
+        createOrderBy(context,sql,params);
 
         System.out.println(sql);
 
         SQLConnection connection = context.get(CONNECTION);
         connection.queryWithParams(sql.toString(), params, res -> {
+            JsonObject object = new JsonObject();
+            object.put("result",true);
+            JsonArray array = new JsonArray();
+
             if (res.succeeded()) {
-                JsonArray array = new JsonArray();
                 res.result().getRows().forEach(array::add);
-                if (array.isEmpty()) {
-                    context.response().setStatusCode(404).end();
-                } else {
-                    context.response().putHeader("content-type", "application/json").end(array.encode());
-                }
+                object.put("data",array);
+                context.response().putHeader("content-type", "application/json").end(object.encode());
             } else {
                 context.response().setStatusCode(404).end();
             }
         });
 
+    }
+
+    private static void createOrderBy(RoutingContext context, StringBuilder sql, JsonArray params){
+        sql.append(" order by user_no " );
     }
 
     private static void createLimit(RoutingContext context, StringBuilder sql, JsonArray params){
