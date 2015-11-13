@@ -13,6 +13,9 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.StringJoiner;
 
 public class ServerVerticle extends AbstractVerticle {
@@ -116,7 +119,18 @@ public class ServerVerticle extends AbstractVerticle {
             JsonArray array = new JsonArray();
 
             if (res.succeeded()) {
-                res.result().getRows().forEach(array::add);
+                List<JsonObject> rows = res.result().getRows();
+                List<JsonObject> result = new ArrayList<JsonObject>();
+                for (JsonObject row : rows) {
+                    Map<String, Object> map = row.getMap();
+                    if(map.get("userFriends") != null){
+                        String str = String.valueOf(row.getValue("userFriends"));
+                        String[] split = str.split(",");
+                        map.put("userFriends",split);
+                    }
+                    array.add(new JsonObject(map));
+                }
+
                 object.put("data",array);
                 context.response().putHeader("content-type", "application/json").end(object.encode());
             } else {
